@@ -1,14 +1,5 @@
 # Zero_Reviews
 
-More from Magento's product reviews.
-- Photos with a review (up to 5): re-encoded on upload (no EXIF, no GPS, no
-  files posing as images), shown under the review once it is approved.
-- "Verified purchase": the review's author is a customer who ordered the
-  product.
-- Google's product reviews feed ({store URL}/reviewfeed/google) for star
-  ratings in Shopping ads.
-Stores > Configuration > Zero > Reviews.
-
 ## Install
 
 Requires Magento Open Source 2.4.7–2.4.9 and PHP 8.2–8.4 with the GD extension built with WebP (`php -r 'var_dump(function_exists("imagewebp"));'` says `true`; Magento's own PHP requirements cover the rest). Without WebP in GD, Zero skips its WebP image copies and serves the originals.

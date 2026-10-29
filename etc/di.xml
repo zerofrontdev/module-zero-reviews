@@ -1,0 +1,12 @@
+<?xml version="1.0"?>
+<!--
+    Copyright © 2026 Roman Pasichnyk
+    SPDX-License-Identifier: OSL-3.0 OR AFL-3.0
+
+    A review list's ratings come in one query instead of one a review.
+-->
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:framework:ObjectManager/etc/config.xsd">
+    <type name="Magento\Review\Model\ResourceModel\Review\Collection">
+        <plugin name="zero_reviews_rate_votes_in_one_query" type="Zero\Reviews\Plugin\RateVotesInOneQuery"/>
+    </type>
+</config>
