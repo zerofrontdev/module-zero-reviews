@@ -4,7 +4,8 @@
     SPDX-License-Identifier: OSL-3.0 OR AFL-3.0
 -->
 <config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:framework:ObjectManager/etc/config.xsd">
-    <type name="Magento\Review\Controller\Product\Post">
+    <!-- An over-size review post has no fields, not even the form key: say so before the CSRF check refuses it. -->
+    <type name="Magento\Framework\App\Request\CsrfValidator">
         <plugin name="zero_reviews_oversized_post" type="Zero\Reviews\Plugin\OversizedPost"/>
     </type>
 </config>

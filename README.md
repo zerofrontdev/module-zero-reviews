@@ -16,6 +16,22 @@ Composer installs `zerofront/module-zero-core` with it.
 
 Part of [`zerofront/zero`](https://zerofront.dev), which installs the Zero theme and every Zero module at once.
 
+## Google product reviews feed
+
+`{store URL}/reviewfeed/google` (Stores > Configuration > Zero > Reviews >
+Google Product Reviews Feed): the store view's approved, rated reviews in
+Google's format 2.3, newest first. The feed is built from 500 reviews at a
+time, so a large store never loads them all at once, and cached for an hour
+(cleaned when a review is saved or deleted).
+
+## Review photos
+
+Uploaded photos are re-encoded as WebP under `pub/media/zero_reviews` with a
+thumbnail. If either file can't be written (full disk, missing folder), the
+upload is refused and no file stays behind.
+
+What changed in each release: [CHANGELOG.md](CHANGELOG.md).
+
 ## License
 
 OSL-3.0 or AFL-3.0, your choice: see `NOTICE.md`.

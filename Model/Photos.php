@@ -170,9 +170,18 @@ class Photos
         $image = $this->decode($tmp);
         $file = bin2hex(random_bytes(1)) . '/' . bin2hex(random_bytes(12)) . '.webp';
         $media = $this->filesystem->getDirectoryWrite(DirectoryList::MEDIA);
-        [$width, $height] = $this->write($image, self::SIZE, $media->getAbsolutePath(self::DIR . '/' . $file), $media);
-        $this->write($image, self::THUMB, $media->getAbsolutePath(self::DIR . '/thumb/' . $file), $media);
-        imagedestroy($image);
+        try {
+            [$width, $height] = $this->write($image, self::SIZE, $media->getAbsolutePath(self::DIR . '/' . $file), $media);
+            try {
+                $this->write($image, self::THUMB, $media->getAbsolutePath(self::DIR . '/thumb/' . $file), $media);
+            } catch (LocalizedException $e) {
+                // No photo without its thumbnail: the main file goes too.
+                $this->remove($media, self::DIR . '/' . $file);
+                throw $e;
+            }
+        } finally {
+            imagedestroy($image);
+        }
         $this->resource->getConnection()->insert($this->resource->getTableName(self::TABLE), [
             'review_id' => $reviewId,
             'file' => $file,
@@ -241,10 +250,32 @@ class Photos
         imagealphablending($out, false);
         imagesavealpha($out, true);
         imagecopyresampled($out, $image, 0, 0, 0, 0, $w, $h, $width, $height);
-        $media->create($media->getRelativePath(dirname($path)));
-        imagewebp($out, $path, 82);
-        imagedestroy($out);
+        try {
+            $media->create($media->getRelativePath(dirname($path)));
+            $written = $this->quietly(static fn () => imagewebp($out, $path, 82));
+        } catch (\Throwable) {
+            $written = false;
+        } finally {
+            imagedestroy($out);
+        }
+        if ($written !== true) {
+            // A full disk or a missing folder: no half-written file stays behind.
+            $this->remove($media, $media->getRelativePath($path));
+            throw new LocalizedException(__('the photo could not be saved.'));
+        }
 
         return [$w, $h];
+    }
+
+    private function remove(Filesystem\Directory\WriteInterface $media, string $path): void
+    {
+        try {
+            if ($media->isFile($path)) {
+                $media->delete($path);
+            }
+        } catch (\Throwable) {
+            // Nothing to remove, or it can't be: the upload fails either way.
+            return;
+        }
     }
 }

@@ -31,6 +31,8 @@ class GoogleFeed
     public const CACHE_TAG = 'zero_reviews_google_feed';
 
     private const LIFETIME = 3600;
+    /** Reviews read at a time: a large store's feed never holds them all in memory. */
+    private const PAGE = 500;
     private const CACHE_TAGS = [self::CACHE_TAG, Review::CACHE_TAG, Product::CACHE_TAG];
 
     public function __construct(
@@ -61,22 +63,8 @@ class GoogleFeed
 
     private function render(Store $store): string
     {
-        $reviews = $this->reviewCollectionFactory->create()
-            ->addStoreFilter((int) $store->getId())
-            ->addStatusFilter(Review::STATUS_APPROVED)
-            ->addFieldToFilter(
-                'main_table.entity_id',
-                (int) $this->reviewFactory->create()->getEntityIdByCode(Review::ENTITY_PRODUCT_CODE)
-            )
-            ->setDateOrder()
-            ->addRateVotes();
-        $productIds = [];
-        foreach ($reviews as $review) {
-            $productIds[] = (int) $review->getEntityPkValue();
-        }
-        $products = $this->products($store, array_unique($productIds));
-        $photos = $this->photos->forReviews(array_map('intval', $reviews->getAllIds()));
         $storeName = $this->storeName($store);
+        $entityId = (int) $this->reviewFactory->create()->getEntityIdByCode(Review::ENTITY_PRODUCT_CODE);
 
         $xml = new \XMLWriter();
         $xml->openMemory();
@@ -94,14 +82,37 @@ class GoogleFeed
         $xml->writeElement('name', $storeName);
         $xml->endElement();
         $xml->startElement('reviews');
-        foreach ($reviews as $review) {
-            $product = $products[(int) $review->getEntityPkValue()] ?? null;
-            $rating = $this->rating($review);
-            if ($product === null || $rating === null) {
-                continue;
+        $page = 1;
+        do {
+            // Newest first; the id breaks ties so no review moves between pages.
+            $reviews = $this->reviewCollectionFactory->create()
+                ->addStoreFilter((int) $store->getId())
+                ->addStatusFilter(Review::STATUS_APPROVED)
+                ->addFieldToFilter('main_table.entity_id', $entityId)
+                ->setDateOrder()
+                ->setOrder('main_table.review_id', 'DESC')
+                ->setPageSize(self::PAGE)
+                ->setCurPage($page);
+            $lastPage = (int) $reviews->getLastPageNumber();
+            $reviews->addRateVotes(); // one vote query for the page (Plugin\RateVotesInOneQuery)
+            $productIds = [];
+            $reviewIds = [];
+            foreach ($reviews as $review) {
+                $productIds[] = (int) $review->getEntityPkValue();
+                $reviewIds[] = (int) $review->getId();
             }
-            $this->review($xml, $review, $rating, $product, $photos[(int) $review->getId()] ?? [], $storeName);
-        }
+            $products = $this->products($store, array_values(array_unique($productIds)));
+            $photos = $this->photos->forReviews($reviewIds);
+            foreach ($reviews as $review) {
+                $product = $products[(int) $review->getEntityPkValue()] ?? null;
+                $rating = $this->rating($review);
+                if ($product === null || $rating === null) {
+                    continue;
+                }
+                $this->review($xml, $review, $rating, $product, $photos[(int) $review->getId()] ?? [], $storeName);
+            }
+            $reviews->clear();
+        } while (++$page <= $lastPage);
         $xml->endElement();
         $xml->endElement();
         $xml->endDocument();
